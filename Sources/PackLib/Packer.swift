@@ -18,6 +18,14 @@ public struct Packer: Sendable {
         try FileManager.default.createDirectory(at: packageDir, withIntermediateDirectories: true)
 
         let deploymentTarget = settings.deploymentTarget(for: products[0].deploymentTarget)
+
+        if URL(fileURLWithPath: "Packages").dirExists {
+            try FileManager.default.createSymbolicLink(
+                atPath: packageDir.appendingPathComponent("Packages").path,
+                withDestinationPath: "../../Packages"
+            )
+        }
+
         let packageSwift = packageDir.appendingPathComponent("Package.swift")
         let contents = """
         // swift-tools-version: 6.0
@@ -314,6 +322,26 @@ public struct Packer: Sendable {
             output: .currentStandardOutput,
             error: .currentStandardError
         ).checkSuccess()
+    }
+
+    static func cfBundleSupportedPlatforms(for triple: String) -> [String] {
+        let components = triple.split(separator: "-").map(String.init)
+        guard let appleIndex = components.firstIndex(of: "apple"),
+              components.indices.contains(appleIndex + 1) else {
+            return ["iPhoneOS"]
+        }
+
+        let os = components[appleIndex + 1].prefix { !$0.isNumber }
+        switch os {
+        case "ios" where components.contains("simulator"):
+            return ["iPhoneSimulator"]
+        case "ios":
+            return ["iPhoneOS"]
+        case "macos", "macosx":
+            return ["MacOSX"]
+        default:
+            return ["iPhoneOS"]
+        }
     }
 }
 
